@@ -114,10 +114,6 @@
  * Invalid input throws TypeError. Valid year range: 1583–9999 (Gregorian
  * calendar).
  *
- * GLOBALLY RESERVED NAMES
- * ---------------------------------------------------------------------------
- * Browser only: "SwedishCalendar". Does not conflict with schema.html, which
- * uses an internal name (_SchemaCal) for its embedded subset version.
  * ===============================================================================
  */
 
