@@ -1,0 +1,23 @@
+{
+  "name": "swedish-holidays",
+  "version": "1.0.0",
+  "description": "Standalone JavaScript library for Swedish public holidays, red days, work-free days, eves, and ISO week utilities.",
+  "main": "src/swedish-calendar.js",
+  "keywords": [
+    "sweden",
+    "swedish",
+    "holidays",
+    "calendar",
+    "public-holidays",
+    "red-days",
+    "work-free-days",
+    "iso-week"
+  ],
+  "author": "xpetter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:xpetter/swedish-holidays.git"
+  },
+  "homepage": "https://github.com/xpetter/swedish-holidays#readme"
+}
