@@ -40,10 +40,14 @@
  *       date, year, month, day, isoWeekYear, isoWeek, isoDayOfWeek,
  *       dayOfWeek, dayNameSv, isSaturday, isSunday, isWeekend,
  *       isPublicHoliday, isRedDay, isWorkFreeDay, isEve, holidayName,
- *       holidayType ('public_holiday' | 'eve' | 'observance' | 'none'),
- *       nextDayIsWorkFree
+ *       holidayNames, holidayType ('public_holiday' | 'eve' | 'observance'
+ *       | 'none'), nextDayIsWorkFree
  *     Swedish-language values: dayNameSv (e.g. "Måndag") and holidayName
  *     (e.g. "Julafton").
+ *     Note: two named days can fall on the same date (e.g. in 2008,
+ *     Kristi himmelsfärdsdag fell on Första maj). holidayNames lists all of
+ *     them, ordered public_holiday > eve > observance; holidayName and
+ *     holidayType reflect the first (highest-priority) one.
  *     Note: holidayType reflects only the kind of a named day. For Sundays
  *     that are not named, use isSunday / isRedDay instead.
  *     Note: nextDayIsWorkFree is purely forward-looking — it returns true
@@ -74,6 +78,7 @@
  *     Sorted array of all named days for a year.
  *     Each entry: { key, nameSv, date, kind: 'public_holiday' | 'eve' | 'observance' }.
  *     The nameSv field holds the Swedish display name, e.g. "Julafton".
+ *     Two entries can share the same date in years where named days collide.
  *
  *   getSwedishRedDays(year)
  *     Sorted array of ISO dates for every red day in the year.
@@ -130,7 +135,7 @@
         // Browser global
         root.SwedishCalendar = factory();
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+})(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
     const EXTRA_WORK_FREE_EVES = new Set([
@@ -139,6 +144,13 @@
         'christmas_eve',
         'new_years_eve'
     ]);
+
+    // Display priority when several named days share a date.
+    const KIND_PRIORITY = {
+        public_holiday: 0,
+        eve: 1,
+        observance: 2
+    };
 
     // Per-year cache to avoid rebuilding the named-day map on every lookup.
     const NAMED_DAY_CACHE = new Map();
@@ -152,21 +164,21 @@
         const dayOfWeek = date.getUTCDay();
         const isoWeekData = getIsoWeekData(date);
 
-        const namedDays = buildNamedDaysMap(year);
-        const namedDay = namedDays.get(isoDate) ?? null;
+        const namedDays = buildNamedDaysMap(year).get(isoDate) ?? [];
+        const primaryNamedDay = namedDays[0] ?? null;
 
         const isSaturday = dayOfWeek === 6;
         const isSunday = dayOfWeek === 0;
         const isWeekend = isSaturday || isSunday;
 
-        const isPublicHoliday = namedDay !== null && namedDay.kind === 'public_holiday';
+        const isPublicHoliday = namedDays.some((day) => day.kind === 'public_holiday');
         const isRedDay = isSunday || isPublicHoliday;
-        const isWorkFreeDay = computeWorkFree(namedDay, isSaturday, isRedDay);
-        const isEve = namedDay !== null && namedDay.kind === 'eve';
+        const isWorkFreeDay = computeWorkFree(namedDays, isSaturday, isRedDay);
+        const isEve = namedDays.some((day) => day.kind === 'eve');
 
         // holidayType reflects the kind of named day only. For Sundays that
         // are not also named, use isSunday / isRedDay instead.
-        const holidayType = namedDay !== null ? namedDay.kind : 'none';
+        const holidayType = primaryNamedDay !== null ? primaryNamedDay.kind : 'none';
 
         return {
             date: isoDate,
@@ -185,7 +197,8 @@
             isRedDay,
             isWorkFreeDay,
             isEve,
-            holidayName: namedDay ? namedDay.nameSv : null,
+            holidayName: primaryNamedDay ? primaryNamedDay.nameSv : null,
+            holidayNames: namedDays.map((day) => day.nameSv),
             holidayType,
             nextDayIsWorkFree: isDateWorkFreeInternal(addDays(date, 1))
         };
@@ -214,7 +227,7 @@
         const januaryFourthIsoDay = getIsoDayOfWeek(januaryFourth);
         const startOfIsoWeekOne = addDays(januaryFourth, 1 - januaryFourthIsoDay);
 
-        return addDays(startOfIsoWeekOne, ((isoWeek - 1) * 7) + (isoDayOfWeek - 1));
+        return addDays(startOfIsoWeekOne, (isoWeek - 1) * 7 + (isoDayOfWeek - 1));
     }
 
     function getIsoWeeksInYear(year) {
@@ -241,6 +254,7 @@
     function getSwedishNamedDays(year) {
         validateYear(year);
         return Array.from(buildNamedDaysMap(year).values())
+            .flat()
             .map((day) => ({
                 key: day.key,
                 nameSv: day.nameSv,
@@ -263,20 +277,26 @@
     // Internal work-free check that operates on a Date object directly.
     // Avoids recursion through getSwedishDayInfo (which calls this in turn).
     function isDateWorkFreeInternal(date) {
+        const year = date.getUTCFullYear();
+
+        // Only reachable via nextDayIsWorkFree for 9999-12-31: the following
+        // day is January 1 of year 10000, which is Nyårsdagen and work-free.
+        if (year > 9999) {
+            return true;
+        }
+
         const isoDate = toIsoDate(date);
-        const namedDay = buildNamedDaysMap(date.getUTCFullYear()).get(isoDate) ?? null;
+        const namedDays = buildNamedDaysMap(year).get(isoDate) ?? [];
         const dayOfWeek = date.getUTCDay();
         const isSaturday = dayOfWeek === 6;
         const isSunday = dayOfWeek === 0;
-        const isPublicHoliday = namedDay !== null && namedDay.kind === 'public_holiday';
+        const isPublicHoliday = namedDays.some((day) => day.kind === 'public_holiday');
         const isRedDay = isSunday || isPublicHoliday;
-        return computeWorkFree(namedDay, isSaturday, isRedDay);
+        return computeWorkFree(namedDays, isSaturday, isRedDay);
     }
 
-    function computeWorkFree(namedDay, isSaturday, isRedDay) {
-        return isRedDay
-            || isSaturday
-            || (namedDay !== null && EXTRA_WORK_FREE_EVES.has(namedDay.key));
+    function computeWorkFree(namedDays, isSaturday, isRedDay) {
+        return isRedDay || isSaturday || namedDays.some((day) => EXTRA_WORK_FREE_EVES.has(day.key));
     }
 
     function collectMatchingDates(year, predicate) {
@@ -315,11 +335,26 @@
             namedDay('easter_monday', 'Annandag påsk', addDays(easter, 1), 'public_holiday'),
             namedDay('walpurgis_eve', 'Valborgsmässoafton', createDate(year, 4, 30), 'eve'),
             namedDay('may_day', 'Första maj', createDate(year, 5, 1), 'public_holiday'),
-            namedDay('ascension_day', 'Kristi himmelsfärdsdag', addDays(easter, 39), 'public_holiday'),
+            namedDay(
+                'ascension_day',
+                'Kristi himmelsfärdsdag',
+                addDays(easter, 39),
+                'public_holiday'
+            ),
             namedDay('pentecost_eve', 'Pingstafton', addDays(easter, 48), 'eve'),
             namedDay('pentecost_sunday', 'Pingstdagen', addDays(easter, 49), 'public_holiday'),
-            namedDay('whit_monday_observance', 'Annandag pingst', addDays(easter, 50), 'observance'),
-            namedDay('national_day', 'Sveriges nationaldag', createDate(year, 6, 6), 'public_holiday'),
+            namedDay(
+                'whit_monday_observance',
+                'Annandag pingst',
+                addDays(easter, 50),
+                'observance'
+            ),
+            namedDay(
+                'national_day',
+                'Sveriges nationaldag',
+                createDate(year, 6, 6),
+                'public_holiday'
+            ),
             namedDay('midsummer_eve', 'Midsommarafton', addDays(midsummer, -1), 'eve'),
             namedDay('midsummer_day', 'Midsommardagen', midsummer, 'public_holiday'),
             namedDay('all_saints_eve', 'Allhelgonaafton', addDays(allSaints, -1), 'eve'),
@@ -330,9 +365,18 @@
             namedDay('new_years_eve', 'Nyårsafton', createDate(year, 12, 31), 'eve')
         ];
 
+        // Several named days can share a date (e.g. Kristi himmelsfärdsdag
+        // fell on Första maj in 2008), so each date maps to a list, sorted
+        // so the highest-priority kind comes first.
         const map = new Map();
         for (const day of days) {
-            map.set(day.date, day);
+            const existing = map.get(day.date);
+            if (existing) {
+                existing.push(day);
+                existing.sort((a, b) => KIND_PRIORITY[a.kind] - KIND_PRIORITY[b.kind]);
+            } else {
+                map.set(day.date, [day]);
+            }
         }
         NAMED_DAY_CACHE.set(year, map);
         return map;
@@ -354,10 +398,10 @@
         const h = (19 * a + b - d - g + 15) % 30;
         const i = Math.floor(c / 4);
         const k = c % 4;
-        const l = (32 + (2 * e) + (2 * i) - h - k) % 7;
-        const m = Math.floor((a + (11 * h) + (22 * l)) / 451);
-        const month = Math.floor((h + l - (7 * m) + 114) / 31);
-        const day = ((h + l - (7 * m) + 114) % 31) + 1;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const month = Math.floor((h + l - 7 * m + 114) / 31);
+        const day = ((h + l - 7 * m + 114) % 31) + 1;
 
         return createDate(year, month, day);
     }
@@ -381,7 +425,7 @@
                 return date;
             }
         }
-        throw new TypeError('Could not calculate All Saints\' Day.');
+        throw new TypeError("Could not calculate All Saints' Day.");
     }
 
     function getIsoWeekData(date) {
@@ -427,11 +471,7 @@
             if (Number.isNaN(input.getTime())) {
                 throw new TypeError('Invalid Date object.');
             }
-            return createDate(
-                input.getUTCFullYear(),
-                input.getUTCMonth() + 1,
-                input.getUTCDate()
-            );
+            return createDate(input.getUTCFullYear(), input.getUTCMonth() + 1, input.getUTCDate());
         }
 
         if (typeof input === 'string') {
@@ -479,4 +519,4 @@
         getSwedishRedDays,
         getSwedishWorkFreeDays
     };
-}));
+});
