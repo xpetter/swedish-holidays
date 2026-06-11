@@ -10,22 +10,22 @@ Standalone JavaScript library for Swedish public holidays, red days, work-free d
 - Holiday eves (`aftnar`)
 - ISO week helpers
 - No dependencies
-- Works in browser, Node.js / CommonJS, and AMD
+- Works in browser, Node.js (CommonJS and ESM), and AMD
 
 ## Installation
 
 ### Direct download
 
-Copy `src/swedish-calendar.js` into your project.
+Copy `src/swedish-calendar.js` (and `src/swedish-calendar.mjs` if you want ESM) into your project.
 
 ### Browser
 
 ```html
 <script src="src/swedish-calendar.js"></script>
 <script>
-    const info = SwedishCalendar.getSwedishDayInfo('2026-12-24');
-    console.log(info.holidayName);   // "Julafton"
-    console.log(info.isWorkFreeDay); // true
+  const info = SwedishCalendar.getSwedishDayInfo('2026-12-24');
+  console.log(info.holidayName); // "Julafton"
+  console.log(info.isWorkFreeDay); // true
 </script>
 ```
 
@@ -36,6 +36,17 @@ const SwedishCalendar = require('./src/swedish-calendar.js');
 
 console.log(SwedishCalendar.isSwedishRedDay('2026-12-25')); // true
 ```
+
+### Node.js / ESM
+
+```javascript
+import SwedishCalendar, { isSwedishRedDay } from './src/swedish-calendar.mjs';
+
+console.log(isSwedishRedDay('2026-12-25')); // true
+console.log(SwedishCalendar.getSwedishDayInfo('2026-12-24').holidayName); // "Julafton"
+```
+
+If the package is installed from npm, `require('swedish-holidays')` and `import ... from 'swedish-holidays'` both work via the `exports` map in `package.json`.
 
 ## Concepts
 
@@ -61,6 +72,14 @@ The library also exposes two important boolean classifications:
   - `Midsommarafton`
   - `Julafton`
   - `Nyårsafton`
+
+### Colliding named days
+
+Two named days can fall on the same date. For example, in 2008 `Kristi himmelsfärdsdag` fell on `Första maj`, and in 2049 `Pingstdagen` falls on `Sveriges nationaldag`. The library keeps all named days in such years:
+
+- `getSwedishNamedDays()` returns one entry per named day, so a date can appear twice.
+- `getSwedishDayInfo()` exposes all names in `holidayNames`, ordered by priority (`public_holiday` > `eve` > `observance`). `holidayName` and `holidayType` reflect the first entry.
+- Boolean flags such as `isPublicHoliday` and `isEve` consider every named day on the date.
 
 ## API
 
@@ -99,6 +118,7 @@ Returned object:
     isWorkFreeDay: true,
     isEve: true,
     holidayName: 'Julafton',
+    holidayNames: ['Julafton'],
     holidayType: 'eve',
     nextDayIsWorkFree: true
 }
@@ -122,7 +142,8 @@ Fields:
 - `isRedDay` — `true` if Sunday or public holiday
 - `isWorkFreeDay` — `true` if red day, Saturday, or one of the extra work-free eves
 - `isEve` — `true` if the day is a named eve
-- `holidayName` — Swedish holiday name or `null`
+- `holidayName` — Swedish name of the highest-priority named day, or `null`
+- `holidayNames` — Array of all Swedish names on the date (usually 0 or 1 entries, 2 when named days collide)
 - `holidayType` — `'public_holiday' | 'eve' | 'observance' | 'none'`
 - `nextDayIsWorkFree` — `true` if the following day is work-free
 
@@ -209,7 +230,7 @@ All helper methods accept:
 
 ### `getSwedishNamedDays(year)`
 
-Returns all named days for a year, sorted by date.
+Returns all named days for a year, sorted by date. In years where two named days fall on the same date, both are included.
 
 ```javascript
 const days = SwedishCalendar.getSwedishNamedDays(2026);
@@ -286,26 +307,18 @@ The current implementation includes:
 - Annandag jul
 - Nyårsafton
 
+## Development
+
+```bash
+npm install
+npm test             # run the test suite (Node.js built-in test runner)
+npm run lint         # ESLint
+npm run format       # Prettier (write)
+npm run format:check # Prettier (check only)
+```
+
+Tests, lint, and format checks run automatically in CI (GitHub Actions) on Node 18, 20, and 22.
+
 ## License
 
-MIT License
-
-Copyright (c) 2026 xpetter
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+[MIT](LICENSE) © xpetter
