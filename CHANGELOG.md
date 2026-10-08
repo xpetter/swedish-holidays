@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.1 - 2026-10-08
+
 ### Fixed
 
 - Browser ESM imports now use a standalone module with native default and named exports.
