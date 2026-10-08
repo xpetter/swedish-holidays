@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Browser ESM imports now use a standalone module with native default and named exports.
+  CommonJS, classic browser scripts, and AMD remain supported.
+- Added regression coverage for strict ESM linking and all API exports across module formats.
+
 ## 1.1.0 - 2026-06-11
 
 ### Fixed
