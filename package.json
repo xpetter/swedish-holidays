@@ -11,13 +11,18 @@
   },
   "files": [
     "src",
+    "scripts/build-esm.mjs",
     "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node --test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "build:esm": "node scripts/build-esm.mjs",
+    "check:esm": "node scripts/build-esm.mjs --check",
+    "pretest": "npm run check:esm",
+    "prepack": "npm run build:esm"
   },
   "keywords": [
     "sweden",

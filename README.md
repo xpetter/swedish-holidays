@@ -16,7 +16,7 @@ Standalone JavaScript library for Swedish public holidays, red days, work-free d
 
 ### Direct download
 
-Copy `src/swedish-calendar.js` (and `src/swedish-calendar.mjs` if you want ESM) into your project.
+Copy `src/swedish-calendar.js` for CommonJS or classic browser scripts, or the standalone `src/swedish-calendar.mjs` for ESM.
 
 ### Browser
 
@@ -28,6 +28,19 @@ Copy `src/swedish-calendar.js` (and `src/swedish-calendar.mjs` if you want ESM) 
   console.log(info.isWorkFreeDay); // true
 </script>
 ```
+
+### Browser / ESM
+
+```html
+<script type="module">
+  import SwedishCalendar, { isSwedishRedDay } from './src/swedish-calendar.mjs';
+
+  console.log(isSwedishRedDay('2026-12-25')); // true
+  console.log(SwedishCalendar.getSwedishDayInfo('2026-12-24').holidayName); // "Julafton"
+</script>
+```
+
+Serve the module over HTTP with a JavaScript MIME type. No bundler or global variable is required.
 
 ### Node.js / CommonJS
 
@@ -322,3 +335,11 @@ Tests, lint, and format checks run automatically in CI (GitHub Actions) on Node 
 ## License
 
 [MIT](LICENSE) © xpetter
+
+## Maintaining module builds
+
+`src/swedish-calendar.js` is the source of truth for the calendar implementation.
+After changing it, run `npm run build:esm` and commit the generated standalone ESM file.
+`npm test` checks that the generated file is current, and `npm pack` regenerates it before packaging.
+The compatibility tests load the module graph as ESM without CommonJS interop and verify every
+export against CommonJS, classic browser globals, and AMD.
