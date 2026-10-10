@@ -29,7 +29,7 @@ test('external workflow actions use immutable commit SHAs', () => {
 test('CI uses read-only permissions and does not persist checkout credentials', () => {
     const workflow = readFileSync(new URL('ci.yml', workflowDirectory), 'utf8');
 
-    assert.match(workflow, /^permissions:\r?\n  contents: read$/m);
+    assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
     assert.match(
         workflow,
         /- uses: actions\/checkout@[a-fA-F0-9]{40}[^\n]*\r?\n\s+with:\r?\n\s+persist-credentials: false/m
